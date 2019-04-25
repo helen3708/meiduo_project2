@@ -171,7 +171,7 @@ CACHES = {
     },
     "verify_code": { # session
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",
+        "LOCATION": "redis://127.0.0.1:6379/2",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
@@ -223,3 +223,6 @@ LOGGING = {
 
 # 指定Django认证用户模型类: 应用名.模型名
 AUTH_USER_MODEL = 'users.User'
+
+# 指定Django登录认证后端
+AUTHENTICATION_BACKENDS = ['users.utils.UsernameMobileAuthBackend']

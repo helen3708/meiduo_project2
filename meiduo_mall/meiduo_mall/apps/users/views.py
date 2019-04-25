@@ -5,8 +5,9 @@ import re
 from .models import User
 from django.db import DatabaseError
 import logging
-from django.contrib.auth import login
+from django.contrib.auth import login,authenticate
 from meiduo_mall.utils.response_code import RETCODE
+from django_redis import get_redis_connection
 
 # Create your views here.
 logger = logging.getLogger('django')
@@ -46,7 +47,11 @@ class RegisterView(View):
         if not re.match(r'^1[3-9]\d{9}$',mobile):
             return HttpResponseForbidden('您输入的手机号格式不正确')
 
-        # TODO 短信验证码校验后期再补充
+        # 短信验证码校验后期再补充
+        redis_conn = get_redis_connection('verify_code')
+        sms_code_sever = redis_conn.get('sms_%s'%mobile)
+        if sms_code_sever is None or sms_code != sms_code_sever.decode():
+            return HttpResponse('短信验证码有误')
 
         # 创建一个user
         try:
@@ -79,3 +84,25 @@ class MobileCountView(View):
     def get(self, request, mobile):
         count = User.objects.filter(mobile=mobile).count()
         return JsonResponse({'count': count, 'code': RETCODE.OK, 'errmsg': 'OK'})
+
+class LoginView(View):
+    """用户账号登录"""
+    def get(self,request):
+        """提供登录界面"""
+        return render(request,'login.html')
+    def post(self,request):
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        remembered = request.POST.get('remembered')
+
+        if all([username,password]) is False:
+            return HttpResponseForbidden('缺少必传参数')
+
+        user = authenticate(username=username,password=password)
+        if user is None:
+            return render(request,'login.html',{'account_errmsg':'用户名或密码错误'})
+
+        login(request,user)
+        if remembered != 'on':
+            request.session.set_expiry(0)
+        return redirect('/')
