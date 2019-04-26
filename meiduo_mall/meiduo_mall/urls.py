@@ -22,4 +22,5 @@ urlpatterns = [
     url(r'^',include('users.urls',namespace='users')),# 用户模块
     url(r'^',include('contents.urls',namespace='contents')),# 首页模块
     url(r'^',include('verifications.urls',namespace='verifications')),#验证模块
+    url(r'^',include('oauth.urls',namespace='oauth')), # QQ模块
 ]

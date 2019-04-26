@@ -1,11 +1,12 @@
-from django.shortcuts import render,redirect
+from django.shortcuts import render,redirect,reverse
 from django.views import View
 from django.http import *
 import re
 from .models import User
 from django.db import DatabaseError
 import logging
-from django.contrib.auth import login,authenticate
+from django.contrib.auth import login,authenticate,logout
+from django.contrib.auth.mixins import LoginRequiredMixin
 from meiduo_mall.utils.response_code import RETCODE
 from django_redis import get_redis_connection
 
@@ -67,9 +68,11 @@ class RegisterView(View):
 
         # 登入用户，实现状态保持
         login(request,user)
-
+        # 创建好响应对象
+        response = redirect('/')
+        response.set_cookie('username',user.username,max_age=3600*24*15)
         # return HttpResponse('注册成功，重定向到首页')
-        return redirect('/')
+        return  response
 
 
 class UsernameCountView(View):
@@ -91,18 +94,56 @@ class LoginView(View):
         """提供登录界面"""
         return render(request,'login.html')
     def post(self,request):
+        """账户密码登录实现逻辑"""
+        # 接收用户名，密码
         username = request.POST.get('username')
         password = request.POST.get('password')
         remembered = request.POST.get('remembered')
 
         if all([username,password]) is False:
             return HttpResponseForbidden('缺少必传参数')
-
+        # 登录认证
         user = authenticate(username=username,password=password)
         if user is None:
             return render(request,'login.html',{'account_errmsg':'用户名或密码错误'})
-
+        # 实现状态保持
         login(request,user)
         if remembered != 'on':
+            # 没有记住用户：浏览器会话结束就过期, 默认是两周
             request.session.set_expiry(0)
-        return redirect('/')
+
+        # 创建好响应对象
+        response=redirect(request.GET.get('next','/'))
+        response.set_cookie('username',user.username,max_age=3600 * 24 * 15)
+        # 响应结果重定向到首页
+        return response
+
+class LogoutView(View):
+    """退出登录"""
+    def get(self,request):
+        # 清除session中的状态保持数据
+        logout(request)
+        # 清除cookie中的username
+        response = redirect(reverse('users:login'))
+        response.delete_cookie('username')
+        # 重定向到login界面
+        return response
+
+
+# class UserInfoView(View):
+#     """用户个人信息"""
+#     def get(self,request):
+#         """提供用户中心界面"""
+#         # 判断当前用户是否登录,如果登录返回用户中心界面
+#         # 如果用户没有登录,就重定义到登录
+#         user = request.user
+#         if user.is_authenticated:
+#             return render(request,'user_center_info.html')
+#         else:
+#             return redirect('/login/?next=/info/')
+class UserInfoView(LoginRequiredMixin,View):
+    def get(self,request):
+        return render(request,'user_center_info.html')
+# class UserInfoView(View):
+#     def get(self,request):
+#         return render(request,'user_center_info.html')
