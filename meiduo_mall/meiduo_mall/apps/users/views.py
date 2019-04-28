@@ -9,6 +9,9 @@ from django.contrib.auth import login,authenticate,logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from meiduo_mall.utils.response_code import RETCODE
 from django_redis import get_redis_connection
+import json
+from .utils import generate_verify_email_url,check_token_to_user
+from celery_tasks.email.tasks import send_verify_email
 
 # Create your views here.
 logger = logging.getLogger('django')
@@ -147,3 +150,42 @@ class UserInfoView(LoginRequiredMixin,View):
 # class UserInfoView(View):
 #     def get(self,request):
 #         return render(request,'user_center_info.html')
+
+class EmailView(LoginRequiredMixin,View):
+    """添加用户邮箱"""
+    def put(self,request):
+        # 接收请求体emai数据
+        json_dict=json.loads(request.body.decode())
+        email = json_dict.get('email')
+        # 校验
+        if all([email]) is None:
+            return HttpResponseForbidden('缺少邮箱数据')
+
+        if not re.match(r'^[a-z0-9][\w\.\-]*@[a-z0-9\-]+(\.[a-z]{2,5}){1,2}$', email):
+            return HttpResponseForbidden('邮箱格式有误')
+        # 获取到user
+        user=request.user
+        # 设置user, emai字段
+        user.email=email
+        # 调用save保存
+        user.save()
+        #发送一个邮件到email
+        verify_url=generate_verify_email_url(user)
+        send_verify_email.delay(email,verify_url)
+
+        return JsonResponse({'code':RETCODE.OK,'errmsg':'OK'})
+class EmailVerifyView(View):
+    """激活邮箱"""
+    def get(self,request):
+        """实现激活邮箱逻辑"""
+        # 获取token
+        token=request.GET.get('token')
+        # 解密并获取到user
+        user=check_token_to_user(token)
+        # 修改当前user.email_active=True
+        if user is None:
+            return HttpResponseForbidden('token无效')
+        user.email_active=True
+        user.save()
+        # 响应
+        return redirect('/info/')
