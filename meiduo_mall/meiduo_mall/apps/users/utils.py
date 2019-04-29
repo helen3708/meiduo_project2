@@ -34,7 +34,7 @@ def generate_verify_email_url(user):
     serializer = Serializer(secret_key=settings.SECRET_KEY,expires_in=3600*24)
     data = {'user_id':user.id,'email':user.email}
     data_sign=serializer.dumps(data).decode()
-    verify_url=settings.EMAIL_VERIFY_URL + '?token'+data_sign
+    verify_url=settings.EMAIL_VERIFY_URL + '?token='+data_sign
     return verify_url
 def check_token_to_user(token):
     """传入token返回user"""
