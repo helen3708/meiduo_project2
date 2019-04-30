@@ -26,10 +26,12 @@ urlpatterns = [
     # 用户新增收货地址
     url(r'^addresses/create/$',CreateAddressView.as_view()),
     #用户收货地址修改和删除
-    url(r'^addresses/(?P<address_id>\d+)/',UpdateDestroyAddressView.as_view()),
+    url(r'^addresses/(?P<address_id>\d+)/$',UpdateDestroyAddressView.as_view()),
     #设置默认地址
     url(r'^addresses/(?P<address_id>\d+)/default/$',DefaultAddressView.as_view()),
     # 修改用户地址标题
     url(r'^addresses/(?P<address_id>\d+)/title/$',UpdataTitleAddressView.as_view()),
-    ]
+    #changpwd
+    url(r'^password/$',ChangePasswordView.as_view()),
+]
 

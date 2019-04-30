@@ -293,6 +293,7 @@ class CreateAddressView(LoginRequiredMixin,View):
 class UpdateDestroyAddressView(View):
     """修改和删除"""
     def put(self,request,address_id):
+        print("1111")
         """修改地址逻辑"""
         # 查询要修改的地址对象
         try:
@@ -303,6 +304,7 @@ class UpdateDestroyAddressView(View):
         json_dict=json.loads(request.body.decode())
         title = json_dict.get('title')
         receiver = json_dict.get('receiver')
+        # print()
         province_id = json_dict.get('province_id')
         city_id = json_dict.get('city_id')
         district_id = json_dict.get('district_id')
@@ -311,8 +313,8 @@ class UpdateDestroyAddressView(View):
         tel = json_dict.get('tel')
         email = json_dict.get('email')
         # 校验
-        if not all([title, receiver, province_id, city_id, district_id, place, mobile]):
-            return HttpResponseForbidden('缺少必传参数')
+        # if not all([title, receiver, province_id, city_id, district_id, place, mobile]):
+        #     return HttpResponseForbidden('缺少必传参数')
         if not re.match(r'^1[3-9]\d{9}$', mobile):
             return HttpResponseForbidden('参数mobile有误')
         if tel:
@@ -334,7 +336,7 @@ class UpdateDestroyAddressView(View):
             email=email
         )
         # 要重新查询一次新数据
-        address=Address.objects.filter(id=address_id)
+        address = Address.objects.get(id=address_id)
         # 把新增的地址数据响应回去
         address_dict={
             'id': address.id,
@@ -349,7 +351,7 @@ class UpdateDestroyAddressView(View):
             'place': address.place,
             'mobile': address.mobile,
             'tel': address.tel,
-            'email': address.email,
+            'email': address.email
         }
         return JsonResponse({'code':RETCODE.OK,'errmsg':'OK','address':address_dict})
 
@@ -361,11 +363,14 @@ class UpdateDestroyAddressView(View):
             return HttpResponseForbidden('要修改的地址不存在')
         address.is_deleted=True
         address.save()
+
         return JsonResponse({'code':RETCODE.OK,'errmsg':'OK'})
 
-class DefaultAddressView(View):
+class DefaultAddressView(LoginRequiredMixin,View):
     """设置默认地址"""
+
     def put(self,request,address_id):
+
         try:
             address = Address.objects.get(id=address_id)
         except Address.DoesNotExist:
@@ -375,8 +380,10 @@ class DefaultAddressView(View):
         user.save()
         return JsonResponse({'code':RETCODE.OK,'errmsg':'OK'})
 
-class UpdataTitleAddressView(View):
+class UpdataTitleAddressView(LoginRequiredMixin,View):
+    """editor title"""
     def put(self,request,address_id):
+        print("address_id: ", address_id)
         try:
             address = Address.objects.get(id=address_id)
         except Address.DoesNotExist:
@@ -386,3 +393,33 @@ class UpdataTitleAddressView(View):
         address.title=title
         address.save()
         return JsonResponse({'code':RETCODE.OK,'errmsg':'OK'})
+class ChangePasswordView(LoginRequiredMixin,View):
+    """changepw"""
+    def get(self,request):
+        """show page"""
+        return render(request,'user_center_pass.html')
+    def post(self,request):
+        # 接收参数
+        old_pwd = request.POST.get('old_pwd')
+        new_pwd = request.POST.get('new_pwd')
+        new_cpwd = request.POST.get('new_cpwd')
+        # 校验
+        if not all([old_pwd,new_pwd]):
+            return HttpResponseForbidden('缺少必传参数')
+        user=request.user
+        if user.check_password(old_pwd) is False:
+            return render(request,'user_center_pass.html',{'origin_pwd_errmsg':'原始密码错误'})
+        if not re.match(r'^[0-9a-zA-Z]{8,20}$',new_pwd):
+            return HttpResponseForbidden('密码最少8位，最长20位')
+        if new_pwd != new_cpwd:
+            return HttpResponseForbidden('两次输入的密码不一致')
+        # 修改密码
+        user.set_password(new_pwd)
+        user.save()
+        # 响应重定向到登录界面
+        # 退出状态保持
+        logout(request)
+        response=redirect('/login/')
+        # 删除cookie中的username
+        response.delete_cookie('username')
+        return response
