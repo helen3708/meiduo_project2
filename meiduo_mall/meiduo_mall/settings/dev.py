@@ -48,8 +48,7 @@ INSTALLED_APPS = [
     'oauth',
     'meiduo_mall.apps.areas',
     'goods',
-
-
+    'contents',
 ]
 
 MIDDLEWARE = [
@@ -252,3 +251,7 @@ EMAIL_FROM = '美多商城<itcast99@163.com>' # 发件人抬头
 
 # 邮箱验证链接域名部分
 EMAIL_VERIFY_URL = 'http://www.meiduo.site:8000/emails/verification/'
+
+# 修改Django的文件存储类
+DEFAULT_FILE_STORAGE = 'meiduo_mall.utils.fastdfs.fdfs_storage.FastDFSStorage'
+FDFS_BASE_URL = 'http://192.168.159.137:8888/'  # FastDFS中sotrage(nginx) ip和端口
