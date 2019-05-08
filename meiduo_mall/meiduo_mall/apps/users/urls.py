@@ -33,5 +33,6 @@ urlpatterns = [
     url(r'^addresses/(?P<address_id>\d+)/title/$',UpdataTitleAddressView.as_view()),
     #changpwd
     url(r'^password/$',ChangePasswordView.as_view()),
+    url(r'^browse_histories/$',UserBrowseHistory.as_view()),
 ]
 

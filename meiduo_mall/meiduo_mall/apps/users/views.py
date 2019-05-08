@@ -12,6 +12,7 @@ from django_redis import get_redis_connection
 import json
 from .utils import generate_verify_email_url,check_token_to_user
 from celery_tasks.email.tasks import send_verify_email
+from goods.models import SKU
 
 # Create your views here.
 logger = logging.getLogger('django')
@@ -132,7 +133,6 @@ class LogoutView(View):
         # 重定向到login界面
         return response
 
-
 # class UserInfoView(View):
 #     """用户个人信息"""
 #     def get(self,request):
@@ -147,9 +147,9 @@ class LogoutView(View):
 class UserInfoView(LoginRequiredMixin,View):
     def get(self,request):
         return render(request,'user_center_info.html')
-# class UserInfoView(View):
-#     def get(self,request):
-#         return render(request,'user_center_info.html')
+    # class UserInfoView(View):
+    #     def get(self,request):
+    #         return render(request,'user_center_info.html')
 
 class EmailView(LoginRequiredMixin,View):
     """添加用户邮箱"""
@@ -393,6 +393,7 @@ class UpdataTitleAddressView(LoginRequiredMixin,View):
         address.title=title
         address.save()
         return JsonResponse({'code':RETCODE.OK,'errmsg':'OK'})
+
 class ChangePasswordView(LoginRequiredMixin,View):
     """changepw"""
     def get(self,request):
@@ -423,3 +424,40 @@ class ChangePasswordView(LoginRequiredMixin,View):
         # 删除cookie中的username
         response.delete_cookie('username')
         return response
+
+class UserBrowseHistory(View):
+    def post(self,request):
+        user=request.user
+        if not user.is_authenticated():
+            return JsonResponse({'code':RETCODE.SESSIONERR,'errmsg':'user not exist'})
+        json_dict=json.loads(request.body.decode())
+        sku_id=json_dict.get('sku_id')
+        try:
+            sku = SKU.objects.get(id=sku_id)
+        except SKU.DoesNotExist:
+            return HttpResponseForbidden('not exist')
+        redis_conn=get_redis_connection('history')
+        pl=redis_conn.pipeline()
+        key='history_%s'%user.id
+        pl.lrem(key,0,sku_id)
+        pl.lpush(key,sku_id)
+        pl.ltrim(key,0,4)
+        pl.execute()
+        return JsonResponse({'code':RETCODE.OK,'errmsg':'OK'})
+
+    def get(self,request):
+        redis_conn=get_redis_connection('history')
+        sku_id_list=redis_conn.lrange('history_%s'%request.user.id,0,-1)
+        skus=[]
+        for sku_id in sku_id_list:
+            sku=SKU.objects.get(id=sku_id)
+            sku_dict={
+                'id':sku.id,
+                'name':sku.name,
+                'default_image_url':sku.default_image.url,
+                'price':sku.price
+            }
+            skus.append(sku_dict)
+        return JsonResponse({'code':RETCODE.OK,'errmsg':'OK','skus':skus})
+
+

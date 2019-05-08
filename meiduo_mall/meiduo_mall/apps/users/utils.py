@@ -23,7 +23,7 @@ def get_user_by_account(account):
 
 class UsernameMobileAuthBackend(ModelBackend):
     """自定义Django的认证后端类"""
-    print('haha')
+    
     def authenticate(self, request, username=None, password=None, **kwargs):
         user = get_user_by_account(username)
         if user and user.check_password(password):

@@ -2,8 +2,9 @@ from django.shortcuts import render
 from django.http import HttpResponseForbidden,JsonResponse
 from django.views import View
 from django.core.paginator import Paginator
+from django.utils import timezone
 
-from .models import GoodsCategory,SKU
+from .models import GoodsCategory,SKU,GoodsVisitCount
 from contents.utils import get_categories
 from .utils import get_breadcrumb
 from meiduo_mall.utils.response_code import RETCODE
@@ -71,10 +72,11 @@ class HotGoodsView(View):
 
         return JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'hot_skus': hot_skus})
 
-class DtailView(View):
+class DetailView(View):
     """商品详情界面"""
 
     def get(self, request, sku_id):
+
 
         try:
             sku = SKU.objects.get(id=sku_id)
@@ -85,6 +87,7 @@ class DtailView(View):
 
         # 查询当前sku所对应的spu
         spu = sku.spu
+
         """1.准备当前商品的规格选项列表 [8, 11]"""
         # 查询当前正显示的sku商品的具体规格
         current_sku_spec_qs = sku.specs.order_by('spec_id')
@@ -117,7 +120,6 @@ class DtailView(View):
             for option in spec_option_qs:  # 遍历当前规格下的所有选项
                 temp_option_ids[index] = option.id  # [8, 12]
                 option.sku_id = spec_sku_map.get(tuple(temp_option_ids))  # 给每个选项对象绑定下他sku_id属性
-
             spec.spec_options = spec_option_qs  # 把规格下的所有选项绑定到规格对象的spec_options属性上
 
 
@@ -129,4 +131,22 @@ class DtailView(View):
             'spu': spu,  # sku所属的spu
             'spec_qs':spu_spec_qs# 当前商品的所有规格数据
         }
+
         return render(request, 'detail.html', context)
+
+class DetailVisitView(View):
+
+    def post(self,request,category_id):
+
+        try:
+            category=GoodsCategory.objects.get(id=category_id)
+        except GoodsCategory.DoesNotExist:
+            return HttpResponseForbidden('Not Found')
+        today_date=timezone.localdate()
+        try:
+            count_data=GoodsVisitCount.objects.get(category_id=category_id,date=today_date)
+        except GoodsVisitCount.DoesNotExist:
+            count_data=GoodsVisitCount(category=category)
+        count_data.count +=1
+        count_data.save()
+        return JsonResponse({'code':RETCODE.OK,'errmsg':'OK'})
