@@ -22,7 +22,7 @@ urlpatterns = [
     # 激活邮箱
     url(r'^emails/verification/$',EmailVerifyView.as_view()),
     # 用户收货地址
-    url(r'^addresses/$',AddressView.as_view()),
+    url(r'^addresses/$',AddressView.as_view(),name='address'),
     # 用户新增收货地址
     url(r'^addresses/create/$',CreateAddressView.as_view()),
     #用户收货地址修改和删除

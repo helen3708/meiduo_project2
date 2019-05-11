@@ -11,6 +11,7 @@ from django.contrib.auth import login
 from .utils import *
 from django_redis import get_redis_connection
 from users.models import User
+from carts.utils import merge_cart_cookie_to_redis
 
 # Create your views here
 
@@ -65,6 +66,9 @@ class OAuthUserView(View):
         # 获取界面跳转来源
         response = redirect(state)
         response.set_cookie('username',user.username,max_age=3600*24*15)
+
+        # 登录成功那一刻合并购物车
+        merge_cart_cookie_to_redis(request,user,response)
         return response
 
     def post(self,request):
@@ -116,4 +120,7 @@ class OAuthUserView(View):
         login(request,user)
         response=redirect(request.GET.get('state'))
         response.set_cookie('username',user.username,max_age=settings.SESSION_COOKIE_AGE)
+
+        # 登录成功那一刻合并购物车
+        merge_cart_cookie_to_redis(request, user, response)
         return response

@@ -13,6 +13,7 @@ import json
 from .utils import generate_verify_email_url,check_token_to_user
 from celery_tasks.email.tasks import send_verify_email
 from goods.models import SKU
+from carts.utils import merge_cart_cookie_to_redis
 
 # Create your views here.
 logger = logging.getLogger('django')
@@ -119,6 +120,9 @@ class LoginView(View):
         # 创建好响应对象
         response=redirect(request.GET.get('next','/'))
         response.set_cookie('username',user.username,max_age=3600 * 24 * 15)
+
+        # 登录成功那一刻合并购物车
+        merge_cart_cookie_to_redis(request, user, response)
         # 响应结果重定向到首页
         return response
 

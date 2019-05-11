@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'meiduo_mall.apps.areas',
     'goods',
     'contents',
+    'orders',
 ]
 
 MIDDLEWARE = [

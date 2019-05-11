@@ -49,13 +49,13 @@ class CartsView(View):
             # 判断要添加的sku_id 在字典中是否存在,如果存在,需要对count做增量计算
             if sku_id in cart_dict:
                 origin_count=cart_dict[sku_id]['count']
-                origin_count += 1
-            else:
-                 # 添加
-                cart_dict[sku_id]={
-                    'count':count,
-                    'selected':selected
-                }
+                count += origin_count
+
+             # 添加
+            cart_dict[sku_id]={
+                'count':count,
+                'selected':selected
+            }
             # 把购物车字典转换回字符串 然后重新设置到cookie中
             cart_str=base64.b64encode(pickle.dumps(cart_dict)).decode()
             # response=http.JsonResponse({'code':RETCODE.OK,'errmsg':'OK'})
@@ -214,3 +214,84 @@ class CartsView(View):
             response.set_cookie('carts',cart_str)
         return response
 
+class CartsSelectesView(View):
+    """购物车全选"""
+    def put(self,request):
+        # 接收参数selected, 因是必须要传，所有get不给默认值
+        json_dict=json.loads(request.body.decode())
+        selected=json_dict.get('selected')
+        # 校验
+        if isinstance(selected,bool) is False:
+            return http.HttpResponseForbidden('参数有误')
+        # 判断用户是否登录
+        user=request.user
+        response=http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
+        if user.is_authenticated:
+            # 登录用户操作Redis
+            # 创建Redis连接对象
+            redis_conn=get_redis_connection('carts')
+            # 获取hash数据
+            redis_cart=redis_conn.hgetall('carts_%s'%user.id)
+            # 判断当前是全选还是全不选
+            if selected:
+                # 如果是全选把hash中的所有sku_id添加到set集合中，列表前添加 *，表示解包
+                redis_conn.sadd('selected_%s'%user.id,*redis_cart.keys())
+            # 如果取消全选，把hash中的所有sku_id从set中删除
+            else:
+                redis_conn.delete('selected_%s'%user.id)
+            # return http.JsonResponse({'code':RETCODE.OK,'errmsg':'OK'})
+        else:
+            # 未登录用户操作cookie
+            cart_str=request.COOKIES.get('carts')
+            if cart_str:
+                cart_dict=pickle.loads(base64.b64decode(cart_str.encode()))
+            else:
+                return http.JsonResponse({'code':RETCODE.DBERR,'errmsg':'cookie数据没有获取到'})
+            # 遍历cookie购物车大字典,把里面的selected改为True或False
+            for sku_id in cart_dict:
+                cart_dict[sku_id]['selected']=selected
+            # 把字典转换成字符串
+            cart_str=base64.b64encode(pickle.dumps(cart_dict)).decode()
+            response.set_cookie('carts',cart_str)
+        return response
+
+class CartsSimpleView(View):
+    def get(self,request):
+        user = request.user
+        if user.is_authenticated:
+            # 登录用户获取redis购物车数据
+            redis_conn = get_redis_connection('carts')
+            # 获取hash数据
+            redis_cart = redis_conn.hgetall('carts_%s' % user.id)
+            selected_ids = redis_conn.smembers('selected_%s' % user.id)
+            # 将redis购物车数据格式转换成和cookie购物车数据格式一致  目的为了后续数据查询转换代码和cookie共用一套代码
+            cart_dict = {}
+            for sku_id_bytes, count_bytes in redis_cart.items():
+                cart_dict[int(sku_id_bytes)] = {
+                    'count': int(count_bytes),
+                    'selected': sku_id_bytes in selected_ids
+                }
+
+        else:
+            """未登录用户获取cookie购物车数据"""
+            # 获取cookie购物车数据
+            cart_str = request.COOKIES.get('carts')
+            if cart_str:
+                cart_dict = pickle.loads(base64.b64decode(cart_str.encode()))
+            else:
+                return http.JsonResponse({'code':RETCODE.DBERR,'errmsg':'没有购物车数据'})
+        # 查询到购物车中所有sku_id对应的sku模型
+        sku_qs = SKU.objects.filter(id__in=cart_dict.keys())
+        # 用来装每个转换好的sku字典
+        cart_skus = []
+        for sku in sku_qs:
+            sku_dict = {
+                'id': sku.id,
+                'name': sku.name,
+                'price': str(sku.price),
+                'default_image_url': sku.default_image.url,
+                'count': int(cart_dict[sku.id]['count'])
+               }
+            cart_skus.append(sku_dict)
+
+        return http.JsonResponse({'code':RETCODE.OK,'errmsg':'OK','cart_skus':cart_skus})
