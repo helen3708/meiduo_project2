@@ -34,5 +34,6 @@ urlpatterns = [
     #changpwd
     url(r'^password/$',ChangePasswordView.as_view()),
     url(r'^browse_histories/$',UserBrowseHistory.as_view()),
+    url(r'^orders/info/(?P<page_num>\d+)/$',UserOrderInfoView.as_view()),
 ]
 

@@ -14,6 +14,8 @@ from .utils import generate_verify_email_url,check_token_to_user
 from celery_tasks.email.tasks import send_verify_email
 from goods.models import SKU
 from carts.utils import merge_cart_cookie_to_redis
+from orders.models import OrderInfo,OrderGoods
+from django.core.paginator import Paginator
 
 # Create your views here.
 logger = logging.getLogger('django')
@@ -137,17 +139,17 @@ class LogoutView(View):
         # 重定向到login界面
         return response
 
-# class UserInfoView(View):
-#     """用户个人信息"""
-#     def get(self,request):
-#         """提供用户中心界面"""
-#         # 判断当前用户是否登录,如果登录返回用户中心界面
-#         # 如果用户没有登录,就重定义到登录
-#         user = request.user
-#         if user.is_authenticated:
-#             return render(request,'user_center_info.html')
-#         else:
-#             return redirect('/login/?next=/info/')
+    # class UserInfoView(View):
+    #     """用户个人信息"""
+    #     def get(self,request):
+    #         """提供用户中心界面"""
+    #         # 判断当前用户是否登录,如果登录返回用户中心界面
+    #         # 如果用户没有登录,就重定义到登录
+    #         user = request.user
+    #         if user.is_authenticated:
+    #             return render(request,'user_center_info.html')
+    #         else:
+    #             return redirect('/login/?next=/info/')
 class UserInfoView(LoginRequiredMixin,View):
     def get(self,request):
         return render(request,'user_center_info.html')
@@ -464,4 +466,41 @@ class UserBrowseHistory(View):
             skus.append(sku_dict)
         return JsonResponse({'code':RETCODE.OK,'errmsg':'OK','skus':skus})
 
+class UserOrderInfoView(LoginRequiredMixin,View):
+    def get(self,request,page_num):
+        # 查询当前登录用户的所有订单
+        user=request.user
+        order_qs=OrderInfo.objects.filter(user=user).order_by('-create_time')
+        for order_model in order_qs:
+            # 给每个订单多定义两个属性, 订单支付方式中文名字, 订单状态中文名字
+            order_model.pay_method_name = OrderInfo.PAY_METHOD_CHOICES[order_model.pay_method - 1][1]
+            order_model.status_name=OrderInfo.ORDER_STATUS_CHOICES[order_model.status - 1][1]
+            # 再给订单模型对象定义sku_list属性,用它来包装订单中的所有商品
+            order_model.sku_list=[]
+            # 获取订单中的所有商品
+            order_good_qs=order_model.skus.all()
+            # 遍历订单中所有商品查询集
+            for good_model in order_good_qs:
+                # 获取到订单商品所对应的sku
+                sku=good_model.sku
+                # 绑定它买了几件
+                sku.count=good_model.count
+                # 给sku绑定一个小计总额
+                sku.amount=sku.price * sku.count
+                # 把sku添加到订单sku_list列表中
+                order_model.sku_list.append(sku)
 
+        # 创建分页器对订单数据进行分页
+        # 创建分页对象
+        paginator=Paginator(order_qs,2)
+        # 获取指定页的所有数据
+        page_orders = paginator.page(page_num)
+        # 获取总页数
+        total_page=paginator.num_pages
+        context = {
+            'page_orders': page_orders,  # 当前这一页要显示的所有订单数据
+            'page_num': page_num,  # 当前是第几页
+            'total_page': total_page  # 总页数
+        }
+
+        return render(request,'user_center_order.html',context)
