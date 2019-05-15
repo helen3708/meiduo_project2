@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'haystack',# 全文检索
+    'django_crontab',  # 定时器
 
     'users',
     'oauth',
@@ -52,6 +53,7 @@ INSTALLED_APPS = [
     'goods',
     'contents',
     'orders',
+    'payment',
 ]
 
 MIDDLEWARE = [
@@ -155,8 +157,8 @@ USE_I18N = True
 
 USE_L10N = True
 
-USE_TZ = True
-
+# USE_TZ = True
+USE_TZ = False  # 不要让它再变成UTC时区直接用 指定时区
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
@@ -289,8 +291,16 @@ HAYSTACK_SIGNAL_PROCESSOR = 'haystack.signals.RealtimeSignalProcessor'
 
 HAYSTACK_SEARCH_RESULTS_PER_PAGE = 5  # 搜索出来的数据每页显示多少条
 
-# 支付宝
+# 支付宝 模拟商家账号:vjgxfd7989@sandbox.com p:111111
 ALIPAY_APPID = '2016092900623266'
 ALIPAY_DEBUG = True  # 表示是沙箱环境还是真实支付环境
 ALIPAY_URL = 'https://openapi.alipaydev.com/gateway.do'
 ALIPAY_RETURN_URL = 'http://www.meiduo.site:8000/payment/status/'
+
+# 定时任务
+CRONJOBS = [
+    # 每1分钟生成一次首页静态文件
+    ('*/1 * * * *', 'contents.crons.generate_static_index_html', '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/crontab.log'))
+]
+
+CRONTAB_COMMAND_PREFIX = 'LANG_ALL=zh_cn.UTF-8'

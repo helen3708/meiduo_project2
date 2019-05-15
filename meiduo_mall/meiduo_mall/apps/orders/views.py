@@ -204,3 +204,99 @@ class OrderSuccessView(LoginRequiredView):
             'pay_method': pay_method
         }
         return render(request,'order_success.html',context)
+
+class OrderCommentView(LoginRequiredView):
+    """订单评价"""
+    def get(self,request):
+        """展示订单评价界面"""
+        # 接收查询参数
+        order_id=request.GET.get('order_id')
+        # 校验
+        try:
+            order=OrderInfo.objects.get(order_id=order_id,user=request.user,status=OrderInfo.ORDER_STATUS_ENUM['UNCOMMENT'])
+        except OrderInfo.DoesNotExist:
+            return http.HttpResponseForbidden('订单有误')
+        # 查询当前订单中所有未评价的订单商品
+        order_goods_qs=OrderGoods.objects.filter(order=order,is_commented=False)
+        # 构造前端渲染需要的数据，新建一个空列表
+        uncomment_goods_list=[]
+        # 遍历order_goods_qs，获取sku
+        for order_goods in order_goods_qs:
+            sku=order_goods.sku
+            uncomment_goods_list.append({
+                'order_id': order_id,
+                'sku_id': sku.id,
+                'default_image_url': sku.default_image.url,
+                'name': sku.name,
+                'price': str(sku.price),
+                'score': order_goods.score,
+                'comment': order_goods.comment,
+                'is_anonymous': str(order_goods.is_anonymous),
+                'is_comment': str(order_goods.is_commented)
+            })
+        context={
+                'uncomment_goods_list': uncomment_goods_list
+            }
+        return render(request,'goods_judge.html',context)
+
+    def post(self,request):
+        """评价订单商品"""
+        # 获取请求体中的数据order_id, sku_id, comment, score, is_anonymous
+        json_dict=json.loads(request.body.decode())
+        order_id=json_dict.get('order_id')
+        sku_id=json_dict.get('sku_id')
+        comment=json_dict.get('comment')
+        score=json_dict.get('score')
+        is_anonymous=json_dict.get('is_anonymous')
+        # 校验
+        # 参数是否齐全
+        if not all([order_id,sku_id,comment,score]):
+            return http.HttpResponseForbidden('缺少必传参数')
+        # order_id, sku_id是否有效,is_anonymous
+        try:
+            order=OrderInfo.objects.get(order_id=order_id,user=request.user,status=OrderInfo.ORDER_STATUS_ENUM['UNCOMMENT'])
+        except OrderInfo.DoesNotExist:
+            return http.HttpResponseForbidden("订单信息有误")
+        try:
+            sku=SKU.objects.get(id=sku_id)
+        except SKU.DoesNotExist:
+            return http.HttpResponseForbidden('sku不存在')
+        if isinstance(is_anonymous,bool) is False:
+            return http.HttpResponseForbidden('参数类型有误')
+        # 修改OrderGoods中的评价信息
+        OrderGoods.objects.filter(sku_id=sku_id,order_id=order_id,is_commented=False).update(is_anonymous=is_anonymous,comment=comment,score=score,is_commented=True)
+        # 修改sku和spu的评价量
+        sku.comments += 1
+        sku.save()
+        sku.spu.comments += 1
+        sku.spu.save()
+        # 判断订单中的商品是否全部评价完成
+        if OrderGoods.objects.filter(order_id=order_id,is_commented=False).count()==0:
+            # 如果都评价则将订单状态修改为已完成
+            order.status=OrderInfo.ORDER_STATUS_ENUM['FINISHED']
+            order.save()
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
+
+class GoodsCommentView(View):
+    """获取评价信息"""
+    def get(self,request,sku_id):
+        # 校验
+        try:
+            sku=SKU.objects.get(id=sku_id)
+        except SKU.DoesNotExist:
+            return http.HttpResponseForbidden('sku不存在')
+        # 获取OrderGood中的当前sku_id的所有OrderGoods
+        order_goods_qs=OrderGoods.objects.filter(sku_id=sku_id,is_commented=True).order_by('-create_time')
+        # 构造前端需要的数据格式  usernmae, score, comment
+        comments=[]
+        for order_goods in order_goods_qs:
+            # 获取当前订单商品所属用户名
+            username=order_goods.order.user.username
+            comments.append({
+                'username':(username[0]+'***'+username[-1]) if order_goods.is_anonymous else username ,
+                'score':order_goods.score,
+                'comment':order_goods.comment
+            })
+        # 响应
+        return http.JsonResponse({'code':RETCODE.OK,'errmsg':'OK','comment_list':comments})
+

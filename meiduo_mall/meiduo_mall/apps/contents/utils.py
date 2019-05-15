@@ -12,7 +12,7 @@ def get_categories():
         # 判断当前的组号在字典中是否存在
         if group_id not in categories:
             # 不存在, 包装一个当前组的准备数据
-            categories[group_id] = {'channels': [], 'sub_cats': []}
+            categories[group_id] = {'channels': [], 'cat_subs': []}
         # 若存在，获取一级类别数据
         cat1 = channel.category
         # 将频道中的url绑定给一级类型对象
@@ -26,7 +26,7 @@ def get_categories():
             # 获取当前二级下面的所有三级,得到三级查询集
             cat3_qs = cat2.subs.all()
             # 把二级下面的所有三级绑定给cat2对象的cat_subs属性
-            cat2.sub_cats = cat3_qs
+            cat2.cat_subs = cat3_qs
             # 添加2级数据到字典中
-            categories[group_id]['sub_cats'].append(cat2)
+            categories[group_id]['cat_subs'].append(cat2)
     return categories
