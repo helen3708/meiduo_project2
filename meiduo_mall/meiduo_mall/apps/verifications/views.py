@@ -7,6 +7,7 @@ import random
 import logging
 from celery_tasks.sms.tasks import send_sms_code
 from . import constents
+from users.utils import check_token_to_user_sign
 
 # Create your views here.
 logger = logging.getLogger('django')
@@ -81,6 +82,28 @@ class SMSCodeView(View):
 
         return JsonResponse({'code':RETCODE.OK,'errmsg':"发送短信验证码"})
 
+class SMSCodeTokenView(View):
+    def get(self,request):
+
+        access_token=request.GET.get('access_token')
+        user=check_token_to_user_sign(access_token)
+        if user is None:
+            return JsonResponse({'code':RETCODE.DBERR,'errmsg':'数据错误'})
+
+        mobile=user.mobile
+
+        redis_conn = get_redis_connection('verify_code')
+        send_flag = redis_conn.get('send_flag_%s' % mobile)
+        if send_flag:
+            return JsonResponse({'code': RETCODE.THROTTLINGERR, 'errmsg': '频繁发送短信'})
+
+        sms_code='%06d'%random.randint(0,999999)
+        logger.info(sms_code)
+        redis_conn.setex('sms_%s' % mobile, constents.SMS_CODE_REDIS_EXPIRES, sms_code)
+
+        send_sms_code.delay(mobile,sms_code)
+
+        return JsonResponse({'code':RETCODE.OK,'message':'OK'})
 
 
 

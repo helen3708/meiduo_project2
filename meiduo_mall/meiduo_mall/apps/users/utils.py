@@ -53,3 +53,28 @@ def check_token_to_user(token):
         else:
             return user
 
+def generate_user_sign(user):
+    """对当前传入的user生成激活邮箱url"""
+    serializer = Serializer(secret_key=settings.SECRET_KEY,expires_in=3600*24)
+    data = {'user_id':user.id}
+    user_sign=serializer.dumps(data).decode()
+
+    return user_sign
+
+def check_token_to_user_sign(token):
+
+    """传入token返回user"""
+    serializer=Serializer(secret_key=settings.SECRET_KEY,expires_in=3600*24)
+    try:
+        data=serializer.loads(token)
+    except BadData:
+        return None
+    else:
+        user_id=data.get('user_id')
+
+        try:
+            user=User.objects.get(id=user_id)
+        except BadData:
+            return None
+        else:
+            return user

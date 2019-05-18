@@ -23,13 +23,14 @@ var vm = new Vue({
 		mobile: '',
 		image_code: '',
 		sms_code: '',
-		openid: ''
+		uid: '',
+
 	},
 	mounted(){
 		// 生成图形验证码
 		this.generate_image_code();
-		// 初始化openid
-		this.openid = openid;
+		// 初始化uid
+		this.uid = uid;
 	},
 	methods: {
 
@@ -135,7 +136,7 @@ var vm = new Vue({
                     this.sending_flag = false;
                 })
         },
-		// 绑定openid,uid
+		// 绑定uid
 		on_submit(){
 			this.check_pwd();
 			this.check_mobile();

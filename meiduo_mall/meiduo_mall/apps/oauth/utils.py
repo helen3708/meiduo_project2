@@ -27,3 +27,22 @@ def check_openid_sign(openid_sign):
         return None
     else:
         return data.get('openid')
+
+def generate_uid_signature(uid):
+
+    serializer=Serializer(secret_key=settings.SECRET_KEY,expires_in=600)
+    # 把数据包装成字典
+    data = {'uid':uid}
+    # 加密后返回的数据是bytes类型
+    uid_sign=serializer.dumps(data)
+    return uid_sign.decode()
+
+def check_uid_sign(uid_sign):
+
+    serializer=Serializer(secret_key=settings.SECRET_KEY,expires_in=600)
+    try:
+        data=serializer.loads(uid_sign)
+    except BadData:
+        return None
+    else:
+        return data.get('uid')

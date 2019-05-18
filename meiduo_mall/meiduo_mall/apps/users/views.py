@@ -11,11 +11,13 @@ from meiduo_mall.utils.response_code import RETCODE
 from django_redis import get_redis_connection
 import json
 from .utils import generate_verify_email_url,check_token_to_user
+from .utils import generate_user_sign,check_token_to_user_sign
 from celery_tasks.email.tasks import send_verify_email
 from goods.models import SKU
 from carts.utils import merge_cart_cookie_to_redis
 from orders.models import OrderInfo,OrderGoods
 from django.core.paginator import Paginator
+from django.db.models import Q
 
 # Create your views here.
 logger = logging.getLogger('django')
@@ -150,6 +152,7 @@ class LogoutView(View):
     #             return render(request,'user_center_info.html')
     #         else:
     #             return redirect('/login/?next=/info/')
+
 class UserInfoView(LoginRequiredMixin,View):
     def get(self,request):
         return render(request,'user_center_info.html')
@@ -180,6 +183,7 @@ class EmailView(LoginRequiredMixin,View):
         send_verify_email.delay(email,verify_url)
 
         return JsonResponse({'code':RETCODE.OK,'errmsg':'OK'})
+
 class EmailVerifyView(View):
     """激活邮箱"""
     def get(self,request):
@@ -504,3 +508,88 @@ class UserOrderInfoView(LoginRequiredMixin,View):
         }
 
         return render(request,'user_center_order.html',context)
+
+class FindPasswordView(View):
+    """提供找回密码页面"""
+    def get(self,request):
+        return render(request,'find_password.html')
+class FirstFindPassword(View):
+
+    def get(self,request,account):
+
+        image_code = request.GET.get('text')
+        uuid = request.GET.get('image_code_id')
+        if not all([account, image_code,uuid]):
+            return HttpResponseForbidden('缺少必传参数')
+
+        user_qs = User.objects.filter(Q(username__exact = account) | Q(mobile__exact = account))
+        if user_qs is False:
+            return HttpResponseNotFound('用户名或手机号不存在')
+
+        user=None
+        for user_ in user_qs:
+            user=user_
+        redis_conn=get_redis_connection('verify_code')
+        # 根据uuid作为key 获取到redis中当前用户的图形验证值
+        image_code_server = redis_conn.get('img_%s' % uuid)
+        # 删除图形验证码，让它只能用一次，防止刷
+        redis_conn.delete('img_%s' % uuid)
+
+        # 从redis中取出来的数据都是bytes类型
+        # 判断用户写的图形验证码和我们redis存的是否一致
+        if image_code_server is None or image_code.lower() != image_code_server.decode().lower():
+            return JsonResponse({'message':'验证码不正确'},status=400)
+
+        access_token=generate_user_sign(user)
+        # content={
+        #     'mobile':user.mobile,
+        #     'access_token':access_token
+        # }
+        return JsonResponse({'errmsg':'OK','mobile':user.mobile,'access_token':access_token})
+
+class SecondFindPasswordView(View):
+    def get(self,request,username):
+
+        sms_code=request.GET.get('sms_code')
+        if not all([username,sms_code]):
+            return HttpResponseForbidden('缺少必传参数')
+
+        redis_conn=get_redis_connection('verify_code')
+        user=User.objects.get(username=username)
+        mobile=user.mobile
+        redis_sms=redis_conn.get('sms_%s' % mobile)
+        if redis_sms is None or sms_code != redis_sms.decode():
+            return JsonResponse({'message':'短信验证码不正确'},status=400)
+
+        access_token=generate_user_sign(user)
+
+        return JsonResponse({'user_id':user.id,'access_token':access_token})
+
+class ThirdFindPasswordView(View):
+
+    def post(self,request,user_id):
+
+        json_dict=json.loads(request.body.decode())
+        password=json_dict.get('password')
+        password2=json_dict.get('password2')
+        access_token=json_dict.get('access_token')
+
+        if not all([user_id,password,password2,access_token]):
+            return HttpResponseForbidden('缺少必传参数')
+        if not re.match(r'[0-9a-zA-Z]{8,20}',password):
+            return HttpResponseForbidden('密码最少8位，最长20位')
+        if password != password2:
+            return HttpResponseForbidden('两次输入的密码不一致')
+        user=check_token_to_user_sign(access_token)
+        if user is None:
+            return JsonResponse({'message':'验证失败'},status=404)
+            # return HttpResponseForbidden('验证失败')
+        try:
+            user.set_password(password)
+            user.save()
+        except Exception as e:
+            logger.error(e)
+            return JsonResponse({'message':'重置密码失败'},status=400)
+        else:
+            return JsonResponse({'message':'密码重置成功'})
+

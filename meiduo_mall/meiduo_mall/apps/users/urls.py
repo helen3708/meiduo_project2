@@ -35,5 +35,10 @@ urlpatterns = [
     url(r'^password/$',ChangePasswordView.as_view()),
     url(r'^browse_histories/$',UserBrowseHistory.as_view()),
     url(r'^orders/info/(?P<page_num>\d+)/$',UserOrderInfoView.as_view()),
+    url(r'^find_password/$',FindPasswordView.as_view(),name='find_password'),
+    url(r'^accounts/(?P<account>.*)/sms/token/$',FirstFindPassword.as_view()),
+    url(r'^accounts/(?P<username>.*)/password/token/$',SecondFindPasswordView.as_view()),
+    url(r'^users/(?P<user_id>\d+)/password/$',ThirdFindPasswordView.as_view()),
+
 ]
 
