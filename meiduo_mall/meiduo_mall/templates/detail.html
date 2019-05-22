@@ -141,6 +141,7 @@
                             <a href="#" class="select">{{ option.value }}</a>
                         {% elif option.sku_id %}
                             <a href="/detail/{{ option.sku_id }}/">{{ option.value }}</a>
+{#                            <a href="/detail/{{ option.sku_id }}.html">{{ option.value }}</a>#}
                         {% else %}
                             <a href="#" style="border: #9f9f9f dashed 1px" title="此商品无货">{{ option.value }}</a>
 

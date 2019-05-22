@@ -529,6 +529,7 @@ class FirstFindPassword(View):
         user=None
         for user_ in user_qs:
             user=user_
+
         redis_conn=get_redis_connection('verify_code')
         # 根据uuid作为key 获取到redis中当前用户的图形验证值
         image_code_server = redis_conn.get('img_%s' % uuid)
@@ -591,5 +592,6 @@ class ThirdFindPasswordView(View):
             logger.error(e)
             return JsonResponse({'message':'重置密码失败'},status=400)
         else:
+
             return JsonResponse({'message':'密码重置成功'})
 

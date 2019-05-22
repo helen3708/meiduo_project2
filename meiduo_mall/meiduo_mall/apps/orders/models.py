@@ -28,6 +28,8 @@ class OrderInfo(BaseModel):
         (5, "已完成"),
         (6, "已取消"),
     )
+
+
     order_id = models.CharField(max_length=64, primary_key=True, verbose_name="订单号")
     user = models.ForeignKey('users.User', on_delete=models.PROTECT, verbose_name="下单用户")
     address = models.ForeignKey('users.Address', on_delete=models.PROTECT, verbose_name="收货地址")
@@ -36,6 +38,7 @@ class OrderInfo(BaseModel):
     freight = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="运费")
     pay_method = models.SmallIntegerField(choices=PAY_METHOD_CHOICES, default=1, verbose_name="支付方式")
     status = models.SmallIntegerField(choices=ORDER_STATUS_CHOICES, default=1, verbose_name="订单状态")
+    is_deleted=models.BooleanField(default=False,verbose_name='逻辑删除')
 
     class Meta:
         db_table = "tb_order_info"

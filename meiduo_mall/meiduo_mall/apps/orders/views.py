@@ -12,6 +12,7 @@ from users.models import Address
 from goods.models import SKU
 from .models import OrderGoods,OrderInfo
 from meiduo_mall.utils.response_code import RETCODE
+from verifications import constents
 
 # Create your views here.
 class OrderSettlementView(LoginRequiredView):
@@ -86,7 +87,7 @@ class OrderCommitView(LoginRequiredView):
 
         # 生成订单编号：时间 + user.id
         user=request.user
-        order_id=timezone.localtime().strftime('%Y%m%d%H%M%S')+('%09d'%user.id)
+        order_id=timezone.now().strftime('%Y%m%d%H%M%S')+('%09d'%user.id)
         # 判断订单状态
         status=(OrderInfo.ORDER_STATUS_ENUM.get('UNPAID')) if pay_method == OrderInfo.PAY_METHODS_ENUM.get('ALIPAY') else OrderInfo.ORDER_STATUS_ENUM.get('UNSEND')
         # 手动创建事务
@@ -177,11 +178,17 @@ class OrderCommitView(LoginRequiredView):
                 # 提交事务
                 transaction.savepoint_commit(save_point)
 
+        # 将订单号存入Redis中
+        redis_conn_order = get_redis_connection('orders')
+        redis_conn_order.setex('order_%s' % user.id, constents.ORDER_REDIS_EXPIRES, order_id)
+
         pl=redis_conn.pipeline()
         # 删除hash中已经购买商品数据{2: 1}
         pl.hdel('carts_%s'%user.id,*cart_selected)
         pl.delete('selected_%s'%user.id)
         pl.execute()
+
+
 
         return http.JsonResponse({'code':RETCODE.OK,'errmsg':'提交订单成功','order_id':order_id})
 
@@ -300,3 +307,22 @@ class GoodsCommentView(View):
         # 响应
         return http.JsonResponse({'code':RETCODE.OK,'errmsg':'OK','comment_list':comments})
 
+class DeletedOrderView(LoginRequiredView):
+    def put(self,request,order_id):
+        if order_id is None:
+            return http.HttpResponseForbidden('缺少必传参数')
+        try:
+            order = OrderInfo.objects.get(order_id=order_id)
+        except OrderInfo.DoesNotExist:
+            return http.HttpResponseForbidden('order不存在')
+
+        # 将Redis中的order删除
+        user=request.user
+        redis_conn=get_redis_connection('orders')
+        redis_order=redis_conn.get('order_%s'%user.id)
+        redis_conn.delete('order_%s'%user.id)
+
+        order.is_deleted=True
+        order.status=6
+        order.save()
+        return http.JsonResponse({'code':RETCODE.OK,'errmsg':'OK'})

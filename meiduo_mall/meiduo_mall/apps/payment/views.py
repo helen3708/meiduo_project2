@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django import http
 from django.conf import settings
 import os
+from django_redis import get_redis_connection
 
 from alipay import AliPay
 
@@ -19,6 +20,13 @@ class PaymentView(LoginRequiredView):
             order=OrderInfo.objects.get(order_id=order_id,user=user,status=OrderInfo.ORDER_STATUS_ENUM['UNPAID'])
         except OrderInfo.DoesNotExist:
             return http.HttpResponseForbidden('订单信息错误')
+
+        # 如果Redis中的order数据没有，则不能付款
+        redis_conn_order=get_redis_connection('orders')
+        redis_order=redis_conn_order.get('order_%s'%user.id)
+        if redis_order is None:
+            return http.HttpResponseForbidden('订单已失效')
+
         # 创建支付宝支付对象
         alipay = AliPay(
             appid=settings.ALIPAY_APPID,
@@ -78,11 +86,18 @@ class PaymentStatusView(LoginRequiredView):
                 )
                 # 修改美多订单状态
                 OrderInfo.objects.filter(user=request.user,order_id=order_id,status=OrderInfo.ORDER_STATUS_ENUM['UNPAID']).update(status=OrderInfo.ORDER_STATUS_ENUM['UNCOMMENT'])
-            # 响应trade_id
 
+                # 将Redis中的order删除
+                user = request.user
+                redis_conn = get_redis_connection('orders')
+                redis_order = redis_conn.get('order_%s' % user.id)
+                redis_conn.delete('order_%s' % user.id)
+
+            # 响应trade_id
             return render(request,'pay_success.html',{'trade_id':trade_id})
-            # 校验失败
+
         else:
+            # 校验失败
             return http.HttpResponseForbidden('非法请求')
 
 

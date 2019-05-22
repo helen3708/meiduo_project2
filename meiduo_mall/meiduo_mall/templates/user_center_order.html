@@ -13,6 +13,7 @@
     <script type="text/javascript" src="/static/js/jquery-1.12.4.min.js"></script>
 </head>
 <body>
+
 <div id="app" v-cloak>
     <div class="header_con">
         <div class="header">
@@ -72,13 +73,16 @@
                 <ul class="order_list_th w978 clearfix">
                     <li class="col01">{{ order.create_time.strftime('%Y-%m-%d %H:%M:%S') }}</li>
                     <li class="col02">订单号：{{ order.order_id }}</li>
+
+{#                    <li v-if="{{ order.status }} == '1'" id="timer" style="color:black"></li>#}
                 </ul>
                 <table class="order_list_table w980">
                     <tbody>
                     <tr>
-                        <td width="55%">
+                        <td width="45%">
                             {% for sku in order.sku_list %}
                                 <ul class="order_goods_list clearfix">
+
                                     <li class="col01"><img src="{{ sku.default_image.url }}"></li>
                                     <li class="col02"><span>{{ sku.name }}</span><em>{{ sku.price }}元</em></li>
                                     <li class="col03">{{ sku.count }}</li>
@@ -86,13 +90,23 @@
                                 </ul>
                             {% endfor %}
                         </td>
+
                         <td width="15%">{{ order.total_amount }}元<br>含运费：{{ order.freight }}元</td>
                         <td width="15%">{{ order.pay_method_name }}</td>
                         <td width="15%">
-                            <a @click="oper_btn_click('{{ order.order_id }}', {{ order.status }})"
+                            <li v-if="{{ order.status }} == '6'"  style="list-style-type: none;">{{ order.status_name }}</li>
+
+                            <a v-else @click="oper_btn_click('{{ order.order_id }} ', {{ order.status }})"
                                class="oper_btn">{{ order.status_name }}</a>
+
                         </td>
-                    </tr>
+                        <td  width="10%" v-if="{{ order.status }} == '1'">
+{#                            <p>[[sms_code_tip]]</p>#}
+                            <a @click="delete_order_btn_click('{{ order.order_id }}', {{ order.status }})" class="delecte_order_btn" >取消订单</a>
+                        </td>
+
+                    </tr
+                    >
                     </tbody>
                 </table>
             {% endfor %}
@@ -120,6 +134,7 @@
 <script type="text/javascript" src="/static/js/common.js"></script>
 <script type="text/javascript" src="/static/js/base.js"></script>
 <script type="text/javascript" src="/static/js/user_center_order.js"></script>
+{#<script type="text/javascript" src="/static/js/place_order.js"></script>#}
 <script>
     $(function () {
         $('#pagination').pagination({
@@ -130,6 +145,22 @@
             }
         })
     });
+    {#var maxtime = 60  ; //一个小时，按秒计算，自己调整!#}
+    {#         function CountDown() {#}
+    {#             if (maxtime >= 0) {#}
+    {#                minutes = Math.floor(maxtime / 60);#}
+    {#                seconds = Math.floor(maxtime % 60);#}
+    {#               msg = "支付时间剩余：" + minutes + "分" + seconds + "秒";#}
+    {#                document.all["timer"].innerHTML = msg;#}
+    {#                --maxtime;#}
+    {#                if (maxtime == 30)alert("还剩30s");#}
+    {##}
+    {#             } else{#}
+    {#                clearInterval(timer);#}
+    {#                alert("过时未付款，请重新下单!");#}
+    {#           }#}
+    {#         }#}
+    {#        timer = setInterval("CountDown()", 1000);#}
 </script>
 
 </body>

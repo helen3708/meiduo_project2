@@ -880,6 +880,7 @@ html,body{height:100%}
 	text-align:center;
 }
 
+
 .order_goods_list{border-bottom:1px solid #ddd;margin-bottom:-2px;}
 .order_goods_list li{float:left; height:80px;line-height:80px;}
 .order_goods_list .col01{width:20%}
@@ -896,7 +897,9 @@ html,body{height:100%}
 .order_goods_list .col03{width:10%}
 .order_goods_list .col04{width:20%}
 
+
 .oper_btn{display:inline-block;border:1px solid #ddd;color:#666;padding:5px 10px}
+.delecte_order_btn{display:inline-block;border:1px solid #ddd;color:#666;padding:10px}
 
 .popup_con{display:none;}
 .popup{width:300px;height:150px;border:1px solid #dddddd;border-top:2px solid #00bc6f;background-color:#f7f7f7;position:fixed;

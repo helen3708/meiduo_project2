@@ -31,13 +31,19 @@ urlpatterns = [
     url(r'^addresses/(?P<address_id>\d+)/default/$',DefaultAddressView.as_view()),
     # 修改用户地址标题
     url(r'^addresses/(?P<address_id>\d+)/title/$',UpdataTitleAddressView.as_view()),
-    #changpwd
+    #修改用户密码
     url(r'^password/$',ChangePasswordView.as_view()),
-    url(r'^browse_histories/$',UserBrowseHistory.as_view()),
+    #浏览记录
+    # url(r'^browse_histories/$',UserBrowseHistory.as_view()),
+    #用户全部订单
     url(r'^orders/info/(?P<page_num>\d+)/$',UserOrderInfoView.as_view()),
+    #找回密码
     url(r'^find_password/$',FindPasswordView.as_view(),name='find_password'),
+    #找回密码
     url(r'^accounts/(?P<account>.*)/sms/token/$',FirstFindPassword.as_view()),
+    #找回密码
     url(r'^accounts/(?P<username>.*)/password/token/$',SecondFindPasswordView.as_view()),
+    #找回密码
     url(r'^users/(?P<user_id>\d+)/password/$',ThirdFindPasswordView.as_view()),
 
 ]

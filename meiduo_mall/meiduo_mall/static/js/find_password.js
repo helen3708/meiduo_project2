@@ -228,12 +228,14 @@ var vm = new Vue({
                         this.step_class['step-3'] = false;
                         this.is_show_form_3 = false;
                         this.is_show_form_4 = true;
+                        location.href='/login/'
                     })
                     .catch(error => {
                         alert(error.response.data.message);
                         console.log(error.response.data);
                     })
             }
-        }
+        },
+
     }
 })
